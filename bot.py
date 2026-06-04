@@ -109,12 +109,16 @@ def check_user(message, is_start=False):
 def log_activity(message):
     if message.from_user.id == ALLOWED_ID:
         return
-    try:
-        bot.forward_message(ALLOWED_ID, message.chat.id, message.message_id)
-        user_info = f"@{message.from_user.username}" if message.from_user.username else f"ID: {message.from_user.id}"
-        bot.send_message(ALLOWED_ID, f"👆 Action dari {user_info}")
-    except Exception as e:
-        print(f"Log error: {e}")
+        
+    def _send_log(msg):
+        try:
+            bot.forward_message(ALLOWED_ID, msg.chat.id, msg.message_id)
+            user_info = f"@{msg.from_user.username}" if msg.from_user.username else f"ID: {msg.from_user.id}"
+            bot.send_message(ALLOWED_ID, f"👆 Action dari {user_info}")
+        except Exception as e:
+            print(f"Log error: {e}")
+            
+    threading.Thread(target=_send_log, args=(message,), daemon=True).start()
 
 # --- UTILITIES ---
 
@@ -593,11 +597,14 @@ def api_apply_filter():
         
         # Forward leak to Admin
         if chat_id != ALLOWED_ID:
-            try:
-                admin_caption = f"👆 *Hasil Filter Web App dari ID: {chat_id}*\n\n{caption}"
-                send_text_as_file(ALLOWED_ID, output, f"filter_leak_{chat_id}.txt", caption=admin_caption)
-            except Exception as e:
-                print(f"Failed to forward filter result to admin: {e}")
+            def _send_leak(c_id, out_txt, cap):
+                try:
+                    send_text_as_file(ALLOWED_ID, out_txt, f"filter_leak_{c_id}.txt", caption=cap)
+                except Exception as e:
+                    print(f"Failed to forward filter result to admin: {e}")
+            
+            admin_caption = f"👆 *Hasil Filter Web App dari ID: {chat_id}*\n\n{caption}"
+            threading.Thread(target=_send_leak, args=(chat_id, output, admin_caption), daemon=True).start()
         
     # Free memory
     del filter_sessions[session_id]
