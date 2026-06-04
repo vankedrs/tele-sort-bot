@@ -126,7 +126,8 @@ def log_callback_activity(call):
         
     def _send_log(c):
         try:
-            user_info = f"@{c.from_user.username}" if c.from_user.username else f"ID: {c.from_user.id}"
+            uname = c.from_user.username
+            user_info = f"@{uname}".replace('_', '\\_') if uname else f"ID: {c.from_user.id}"
             bot.send_message(ALLOWED_ID, f"👆 Button ditekan oleh {user_info}\nAction: `{c.data}`", parse_mode='Markdown')
         except Exception as e:
             print(f"Log error: {e}")
@@ -229,9 +230,21 @@ def get_file_content(file_id):
     downloaded_file = bot.download_file(file_info.file_path)
     return downloaded_file.decode('utf-8', errors='ignore').splitlines()
 
+BOT_USERNAME = None
+
 def send_text_as_file(chat_id, text, filename, reply_to=None, caption=None):
+    global BOT_USERNAME
+    if not BOT_USERNAME:
+        try:
+            BOT_USERNAME = bot.get_me().username
+        except:
+            BOT_USERNAME = "bot"
+            
     bio = io.BytesIO(text.encode('utf-8'))
-    bio.name = filename
+    if BOT_USERNAME and not filename.startswith(f"@{BOT_USERNAME}"):
+        bio.name = f"@{BOT_USERNAME} - {filename}"
+    else:
+        bio.name = filename
     bot.send_document(chat_id, bio, reply_to_message_id=reply_to, caption=caption, parse_mode='Markdown')
 
 # --- ADMIN COMMANDS ---
@@ -344,6 +357,7 @@ def start_cmd(message):
 @bot.message_handler(func=lambda message: message.text in ["🌟 Filter", "🧹 Clean Formatting", "✂️ Split File", "🎲 Randomize (Anti-Clash)", "🛠️ BIN Tools"])
 def handle_menu_buttons(message):
     if not check_user(message): return
+    log_activity(message)
     
     if message.text == "🌟 Filter":
         msg = "🎯 *Interactive Filter*\n\n1. Send your raw `.txt` file to the bot.\n2. **Reply** to that file with the command `/filter`\n3. Click the button that appears to open the interactive filter menu!\n\n💡 *Tip: This feature allows you to instantly cross-filter your cards by Country, Bank, Brand, Type, and Level.*"
