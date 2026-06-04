@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Premium Advanced Filters</title>
+    <link rel="stylesheet" href="style.css?v=2">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+    <!-- Welcome / Loading Screen -->
+    <div id="welcome-screen" class="welcome-container">
+        <div class="welcome-content">
+            <img id="user-photo" src="" alt="Profile" class="profile-pic" style="display: none;">
+            <div class="profile-placeholder" id="profile-placeholder" style="display: none;"></div>
+            <h1 id="welcome-text">Loading Workspace...</h1>
+            <p>Syncing CC database</p>
+            <div class="progress-container">
+                <div class="progress-bar" id="progress-bar"></div>
+            </div>
+            <p id="progress-text" style="font-weight: bold; margin-top: 10px; color: var(--accent);">0%</p>
+        </div>
+    </div>
+
+    <!-- Main App Screen -->
+    <div id="app" style="display: none;">
+        <div class="header glass-effect">
+            <h2 id="total-cards">0 cards</h2>
+            <p>Select filters to apply.</p>
+        </div>
+
+        <div id="filters-container">
+            <!-- Filter sections injected by JS -->
+        </div>
+    </div>
+
+    <!-- Search Modal -->
+    <div id="search-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Category</h3>
+                <button class="close-btn" onclick="closeModal()">✕</button>
+            </div>
+            <div class="modal-search">
+                <input type="text" id="modal-search-input" placeholder="Search..." onkeyup="filterModalItems()">
+            </div>
+            <div class="modal-body" id="modal-list">
+                <!-- Items injected by JS -->
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js?v=2"></script>
+</body>
+</html>
