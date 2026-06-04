@@ -105,6 +105,12 @@ def log_activity(message):
 
 # --- UTILITIES ---
 
+def is_valid_text_file(document):
+    if not document: return False
+    if document.mime_type == 'text/plain': return True
+    if document.file_name and document.file_name.lower().endswith('.txt'): return True
+    return False
+
 def luhn_check(card_number):
     try:
         digits = [int(x) for x in str(card_number) if x.isdigit()]
@@ -332,8 +338,8 @@ def handle_docs(message):
 def handle_random(message):
     if not check_user(message): return
     log_activity(message)
-    if not message.reply_to_message or not message.reply_to_message.document:
-        bot.reply_to(message, "⚠️ Please **reply** to a `.txt` file with `/random [digits]`", parse_mode='Markdown')
+    if not message.reply_to_message or not is_valid_text_file(message.reply_to_message.document):
+        bot.reply_to(message, "⚠️ Please **reply** to a valid `.txt` file with `/random [digits]`", parse_mode='Markdown')
         return
     parts = message.text.split()
     bin_length = 6
@@ -354,8 +360,8 @@ def handle_random(message):
 def handle_split(message):
     if not check_user(message): return
     log_activity(message)
-    if not message.reply_to_message or not message.reply_to_message.document:
-        bot.reply_to(message, "⚠️ Please **reply** to a `.txt` file with `/split [lines]`", parse_mode='Markdown')
+    if not message.reply_to_message or not is_valid_text_file(message.reply_to_message.document):
+        bot.reply_to(message, "⚠️ Please **reply** to a valid `.txt` file with `/split [lines]`", parse_mode='Markdown')
         return
     parts = message.text.split()
     if len(parts) < 2 or not parts[1].isdigit():
@@ -387,8 +393,8 @@ def handle_filter_app(message):
         bot.reply_to(message, "❌ Tunnel URL is not set. Owner must use /seturl first.")
         return
         
-    if not message.reply_to_message or not message.reply_to_message.document:
-        bot.reply_to(message, "⚠️ Please **reply** to a `.txt` document with `/filter`", parse_mode='Markdown')
+    if not message.reply_to_message or not is_valid_text_file(message.reply_to_message.document):
+        bot.reply_to(message, "⚠️ Please **reply** to a valid `.txt` document with `/filter`", parse_mode='Markdown')
         return
         
     msg = bot.reply_to(message, "🔍 Analyzing file and matching BINs... (Please wait)")
@@ -592,8 +598,8 @@ def gen_clean_keyboard(options):
 @bot.message_handler(commands=['clean'])
 def handle_clean(message):
     if not check_user(message): return
-    if not message.reply_to_message or not message.reply_to_message.document:
-        bot.reply_to(message, "⚠️ Please **reply** to a `.txt` file with `/clean`", parse_mode='Markdown')
+    if not message.reply_to_message or not is_valid_text_file(message.reply_to_message.document):
+        bot.reply_to(message, "⚠️ Please **reply** to a valid `.txt` file with `/clean`", parse_mode='Markdown')
         return
     file_id = message.reply_to_message.document.file_id
     options = {'dump': True, 'format': True, 'dup': True, 'exp': True, 'luhn': True}
@@ -682,8 +688,8 @@ def get_flag_emoji(iso2):
 @bot.message_handler(commands=['bin'])
 def handle_bin_tools(message):
     if not check_user(message): return
-    if not message.reply_to_message or not message.reply_to_message.document:
-        bot.reply_to(message, "⚠️ Please **reply** to a `.txt` file with `/bin`", parse_mode='Markdown')
+    if not message.reply_to_message or not is_valid_text_file(message.reply_to_message.document):
+        bot.reply_to(message, "⚠️ Please **reply** to a valid `.txt` file with `/bin`", parse_mode='Markdown')
         return
         
     file_id = message.reply_to_message.document.file_id
@@ -736,7 +742,13 @@ def handle_bin_callback(call):
                         bank = info['bank'] or 'Unknown'
                         flag = get_flag_emoji(info['iso2'])
                         flag_str = f"{flag} " if flag else ""
-                        result_lines.append(f"{flag_str}{bin6} - {brand} - {ctype} - {bank} - {country}".strip(' - Unknown'))
+                        
+                        components = [f"{flag_str}{bin6}"]
+                        for item in [brand, ctype, bank, country]:
+                            if item and item != 'Unknown':
+                                components.append(item)
+                                
+                        result_lines.append(" - ".join(components))
                         
             output = "\n".join(result_lines)
             caption = f"✅ Extracted {len(result_lines)} unique BINs."
